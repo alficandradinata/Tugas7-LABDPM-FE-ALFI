@@ -4,7 +4,7 @@ import { View, Text, StyleSheet } from "react-native";
 export default function Splash({ onFinish }) {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>My App</Text>
+      <Text style={styles.text}>My asdsa App</Text>
     </View>
   );
 }

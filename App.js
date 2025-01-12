@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { SafeAreaView, StatusBar, StyleSheet } from "react-native";
+import { SafeAreaView, StatusBar, StyleSheet, Alert } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
@@ -18,7 +18,6 @@ const Tab = createBottomTabNavigator();
 
 const TOKEN_EXPIRATION_DAYS = 2;
 
-// Helper function to get icon name
 const getIconName = (routeName) => {
   switch (routeName) {
     case "Beranda":
@@ -32,7 +31,6 @@ const getIconName = (routeName) => {
   }
 };
 
-// MainTabNavigator
 function MainTabNavigator({ handleLogout }) {
   return (
     <Tab.Navigator
@@ -46,9 +44,11 @@ function MainTabNavigator({ handleLogout }) {
     >
       <Tab.Screen name="Beranda" component={BerandaScreen} options={{ headerShown: false }} />
       <Tab.Screen name="Todos" component={TodoList} options={{ headerShown: false, title: "Todos" }} />
-      <Tab.Screen name="Profil"options={{headerShown: false}} >
-        {props => <ProfileScreen {...props} onLogout={handleLogout} />}
-      </Tab.Screen>
+      <Tab.Screen
+        name="Profil"
+        options={{ headerShown: false }}
+        children={(props) => <ProfileScreen {...props} onLogout={handleLogout} />}
+      />
     </Tab.Navigator>
   );
 }
@@ -59,31 +59,47 @@ export default function App() {
 
   useEffect(() => {
     const checkLoginStatus = async () => {
-      const tokenData = await AsyncStorage.getItem("token");
-      if (tokenData) {
-        const { token, expiry } = JSON.parse(tokenData);
-        const now = new Date();
-        if (new Date(expiry) > now) {
-          setLoggedIn(true);
-        } else {
-          await AsyncStorage.removeItem("token");
+      try {
+        const tokenData = await AsyncStorage.getItem("token");
+        if (tokenData) {
+          const parsedTokenData = JSON.parse(tokenData);
+          const { token, expiry } = parsedTokenData;
+          const now = new Date();
+          if (new Date(expiry) > now) {
+            setLoggedIn(true);
+          } else {
+            await AsyncStorage.removeItem("token");
+          }
         }
+      } catch (error) {
+        console.error("Error checking login status:", error);
+      } finally {
+        setSplashVisible(false);
       }
-      setSplashVisible(false);
     };
     checkLoginStatus();
   }, []);
 
   const handleLogin = async (token) => {
-    const expiry = new Date();
-    expiry.setDate(expiry.getDate() + TOKEN_EXPIRATION_DAYS);
-    await AsyncStorage.setItem("token", JSON.stringify({ token, expiry: expiry.toISOString() }));
-    setLoggedIn(true);
+    try {
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + TOKEN_EXPIRATION_DAYS);
+      await AsyncStorage.setItem("token", JSON.stringify({ token, expiry: expiry.toISOString() }));
+      setLoggedIn(true);
+    } catch (error) {
+      console.error("Error handling login:", error);
+      Alert.alert("Error", "Failed to login. Please try again.");
+    }
   };
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem("token");
-    setLoggedIn(false);
+    try {
+      await AsyncStorage.removeItem("token");
+      setLoggedIn(false);
+    } catch (error) {
+      console.error("Error handling logout:", error);
+      Alert.alert("Error", "Failed to logout. Please try again.");
+    }
   };
 
   return (
@@ -100,19 +116,16 @@ export default function App() {
             }}
           >
             {isLoggedIn ? (
-              <>
-                <Stack.Screen name="Home" options={{ headerShown: false }}>
-                  {props => <MainTabNavigator {...props} handleLogout={handleLogout} />}
-                </Stack.Screen>
-             
-              </>
+              <Stack.Screen name="Home" options={{ headerShown: false }}>
+                {(props) => <MainTabNavigator {...props} handleLogout={handleLogout} />}
+              </Stack.Screen>
             ) : (
               <>
                 <Stack.Screen
                   name="Login"
                   options={{ headerShown: false }}
                 >
-                  {props => <LoginScreen {...props} onLogin={handleLogin} />}
+                  {(props) => <LoginScreen {...props} onLogin={handleLogin} />}
                 </Stack.Screen>
                 <Stack.Screen name="Register" component={RegisterScreen} />
               </>

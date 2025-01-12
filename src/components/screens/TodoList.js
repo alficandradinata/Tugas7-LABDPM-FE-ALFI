@@ -3,15 +3,17 @@ import { View, Text, TextInput, Button, FlatList, StyleSheet, TouchableOpacity, 
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://192.168.1.3:8000/api/todos';
+const API_URL = 'http://192.168.1.24:3000/api/todos';
 
 export default function TodoList() {
   const [todos, setTodos] = useState([]);
+  const [filteredTodos, setFilteredTodos] = useState([]); // Untuk menyimpan hasil pencarian
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [token, setToken] = useState('');
   const [editTodoId, setEditTodoId] = useState(null); // Untuk melacak todo yang sedang diedit
+  const [searchText, setSearchText] = useState(''); // Teks pencarian
 
   useEffect(() => {
     const fetchTodos = async () => {
@@ -24,6 +26,7 @@ export default function TodoList() {
         });
         const data = await response.json();
         setTodos(data.data || []);
+        setFilteredTodos(data.data || []); // Inisialisasi filteredTodos
       }
     };
     fetchTodos();
@@ -42,7 +45,9 @@ export default function TodoList() {
     const result = await response.json();
 
     if (response.ok) {
-      setTodos((prev) => [result.data, ...prev]);
+      const newTodos = [result.data, ...todos];
+      setTodos(newTodos);
+      setFilteredTodos(newTodos); // Perbarui hasil pencarian
       setTitle('');
       setDescription('');
       setShowForm(false);
@@ -64,11 +69,11 @@ export default function TodoList() {
     const result = await response.json();
 
     if (response.ok) {
-      setTodos((prev) =>
-        prev.map((todo) =>
-          todo._id === editTodoId ? { ...todo, title, description } : todo
-        )
+      const updatedTodos = todos.map((todo) =>
+        todo._id === editTodoId ? { ...todo, title, description } : todo
       );
+      setTodos(updatedTodos);
+      setFilteredTodos(updatedTodos); // Perbarui hasil pencarian
       setTitle('');
       setDescription('');
       setShowForm(false);
@@ -87,10 +92,22 @@ export default function TodoList() {
     });
 
     if (response.ok) {
-      setTodos((prev) => prev.filter((todo) => todo._id !== id));
+      const updatedTodos = todos.filter((todo) => todo._id !== id);
+      setTodos(updatedTodos);
+      setFilteredTodos(updatedTodos); // Perbarui hasil pencarian
     } else {
       alert('Error deleting todo');
     }
+  };
+
+  const handleSearch = (text) => {
+    setSearchText(text);
+    const results = todos.filter(
+      (todo) =>
+        todo.title.toLowerCase().includes(text.toLowerCase()) ||
+        todo.description.toLowerCase().includes(text.toLowerCase())
+    );
+    setFilteredTodos(results);
   };
 
   const handleCancelEdit = () => {
@@ -103,6 +120,14 @@ export default function TodoList() {
   return (
     <View style={styles.container}>
       <Text style={styles.header}>My Todos</Text>
+
+      {/* Input Pencarian */}
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Cari Todo..."
+        value={searchText}
+        onChangeText={handleSearch}
+      />
 
       {showForm ? (
         <View style={styles.formContainer}>
@@ -124,7 +149,7 @@ export default function TodoList() {
       ) : (
         <>
           <FlatList
-            data={todos}
+            data={filteredTodos}
             keyExtractor={(item) => item._id}
             renderItem={({ item }) => (
               <View style={styles.todoItem}>
@@ -165,6 +190,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 10,
+  },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 15,
+    backgroundColor: '#fff',
   },
   formContainer: {
     marginBottom: 20,
